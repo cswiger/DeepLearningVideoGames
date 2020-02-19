@@ -1,12 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import tensorflow as tf
 import cv2
 import sys
 sys.path.append("Wrapped Game Code/")
-import pong_fun # whichever is imported "as game" will be used
+import pong_fun as game # whichever is imported "as game" will be used
 import dummy_game
-import tetris_fun as game
+import tetris_fun 
 import random
 import numpy as np
 from collections import deque
@@ -23,7 +23,7 @@ BATCH = 32 # size of minibatch
 K = 1 # only select an action every Kth frame, repeat prev for others
 
 def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev = 0.01)
+    initial = tf.random.truncated_normal(shape, stddev = 0.01)
     return tf.Variable(initial)
 
 def bias_variable(shape):
@@ -54,7 +54,7 @@ def createNetwork():
     b_fc2 = bias_variable([ACTIONS])
 
     # input layer
-    s = tf.placeholder("float", [None, 80, 80, 4])
+    s = tf.compat.v1.placeholder("float", [None, 80, 80, 4])
 
     # hidden layers
     h_conv1 = tf.nn.relu(conv2d(s, W_conv1, 4) + b_conv1)
@@ -78,11 +78,11 @@ def createNetwork():
 
 def trainNetwork(s, readout, h_fc1, sess):
     # define the cost function
-    a = tf.placeholder("float", [None, ACTIONS])
-    y = tf.placeholder("float", [None])
-    readout_action = tf.reduce_sum(tf.mul(readout, a), reduction_indices = 1)
+    a = tf.compat.v1.placeholder("float", [None, ACTIONS])
+    y = tf.compat.v1.placeholder("float", [None])
+    readout_action = tf.compat.v1.reduce_sum(tf.multiply(readout, a), reduction_indices = 1)
     cost = tf.reduce_mean(tf.square(y - readout_action))
-    train_step = tf.train.AdamOptimizer(1e-6).minimize(cost)
+    train_step = tf.compat.v1.train.AdamOptimizer(1e-6).minimize(cost)
 
     # open up a game state to communicate with emulator
     game_state = game.GameState()
@@ -103,14 +103,14 @@ def trainNetwork(s, readout, h_fc1, sess):
     s_t = np.stack((x_t, x_t, x_t, x_t), axis = 2)
 
     # saving and loading networks
-    saver = tf.train.Saver()
-    sess.run(tf.initialize_all_variables())
-    checkpoint = tf.train.get_checkpoint_state("saved_networks")
+    saver = tf.compat.v1.train.Saver()
+    sess.run(tf.compat.v1.initialize_all_variables())
+    checkpoint = tf.compat.v1.train.get_checkpoint_state("saved_networks")
     if checkpoint and checkpoint.model_checkpoint_path:
         saver.restore(sess, checkpoint.model_checkpoint_path)
-        print "Successfully loaded:", checkpoint.model_checkpoint_path
+        print("Successfully loaded:", checkpoint.model_checkpoint_path)
     else:
-        print "Could not find old network weights"
+        print("Could not find old network weights")
 
     epsilon = INITIAL_EPSILON
     t = 0
@@ -185,7 +185,7 @@ def trainNetwork(s, readout, h_fc1, sess):
             state = "explore"
         else:
             state = "train"
-        print "TIMESTEP", t, "/ STATE", state, "/ LINES", game_state.total_lines, "/ EPSILON", epsilon, "/ ACTION", action_index, "/ REWARD", r_t, "/ Q_MAX %e" % np.max(readout_t)
+        print("TIMESTEP", t, "/ STATE", state,  "/ EPSILON", epsilon, "/ ACTION", action_index, "/ REWARD", r_t, "/ Q_MAX %e" % np.max(readout_t))
 
         # write info to files
         '''
@@ -196,7 +196,8 @@ def trainNetwork(s, readout, h_fc1, sess):
         '''
 
 def playGame():
-    sess = tf.InteractiveSession()
+    tf.compat.v1.disable_eager_execution()
+    sess = tf.compat.v1.InteractiveSession()
     s, readout, h_fc1 = createNetwork()
     trainNetwork(s, readout, h_fc1, sess)
 
